@@ -33,7 +33,7 @@ func parseRss(url string) string {
 	fp := gofeed.NewParser()
 	feed, _ := fp.ParseURL(url)
 	body := feed.Items[0].Content
-	z := strings.Replace(body, "</p>", "\n</p>", -1)
+	z := strings.Replace(body, "</p>", "\n </p>", -1)
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(z))
 	if err != nil {
@@ -73,33 +73,31 @@ func sendReq(botToken string, text string, ID int) *http.Response {
 
 func clean(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	botToken := os.Getenv("TOKEN")
+	commands := os.Getenv("COMMANDS")
+	subs := os.Getenv("SUBS")
+	botname := os.Getenv("BOTNAME")
+	commandsArray := strings.Split(commands, ",")
+	subsArray := strings.Split(subs, ",")
+
 	b := []byte(req.Body)
 	var f update
 	json.Unmarshal(b, &f)
 	chatID := f.Message.Chat.ID
 
-	if f.Message.Text == "/makarna" || f.Message.Text == "/makarna@kopyamakarnabot" {
-		text := parseRss("https://www.reddit.com/r/kopyamakarna/rising.rss")
-		res := sendReq(botToken, text, chatID)
-		if res.StatusCode != 200 {
-			sendReq(botToken, getLink("https://www.reddit.com/r/kopyamakarna/rising.rss"), chatID)
+	for num, command := range commandsArray {
+		if f.Message.Text == "/"+command || f.Message.Text == "/"+command+"@"+botname {
+			url := "https://www.reddit.com/r/" + subsArray[num] + "/rising.rss"
+			text := parseRss(url)
+			res := sendReq(botToken, text, chatID)
+			if res.StatusCode != 200 {
+				sendReq(botToken, getLink(url), chatID)
+			}
+			return events.APIGatewayProxyResponse{
+				StatusCode: 200,
+				Body:       `{"result" : true}`,
+			}, nil
 		}
-		return events.APIGatewayProxyResponse{
-			StatusCode: 200,
-			Body:       `{"result" : true}`,
-		}, nil
-	}
 
-	if f.Message.Text == "/makarna2" || f.Message.Text == "/makarna2@kopyamakarnabot" {
-		text := parseRss("https://www.reddit.com/r/kopyamakarna2/rising.rss")
-		res := sendReq(botToken, text, chatID)
-		if res.StatusCode != 200 {
-			sendReq(botToken, getLink("https://www.reddit.com/r/kopyamakarna2/rising.rss"), chatID)
-		}
-		return events.APIGatewayProxyResponse{
-			StatusCode: 200,
-			Body:       `{"result" : true}`,
-		}, nil
 	}
 
 	return events.APIGatewayProxyResponse{
